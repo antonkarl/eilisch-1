@@ -1,0 +1,9 @@
+data
+__pycache__
+glf_files
+mps
+plots
+.ipynb_checkpoints
+.env
+.R*
+.DS_Store
