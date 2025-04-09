@@ -25,70 +25,6 @@ XML_NS = "{http://www.w3.org/XML/1998/namespace}"
 DATE_FORMAT = "%Y-%m-%d"
 
 
-def get_mp_data(metadata_file):
-    mp_dict = dict()
-
-    # get mp person data
-    root = ET.parse(metadata_file)
-    mps = root.findall(".//tei:person", TEI_NS)
-    for mp in mps:
-
-        mp_id = mp.attrib[f"{XML_NS}id"]
-        sex = mp.find(".//tei:sex", TEI_NS).attrib["value"]
-        birth = mp.find(".//tei:birth", TEI_NS).attrib["when"]
-
-        mp_fields = dict()
-        mp_fields["sex"] = sex
-        mp_fields["birth"] = birth
-        affiliations = mp.findall(".//tei:affiliation", TEI_NS)
-        year_from = 3000
-        year_to = 0
-
-        for element in affiliations:
-
-            if "from" in element.attrib:
-                year_from = min(year_from, int(element.attrib["from"].split("-")[0]))
-            if "to" in element.attrib:
-                year_to = max(year_to, int(element.attrib["to"].split("-")[0]))
-
-            mp_fields["year_from"] = year_from
-            mp_fields["year_to"] = year_to
-
-        mp_fields["affiliations"] = affiliations
-        mp_dict[mp_id] = mp_fields
-    return mp_dict
-
-
-# Retrieve all parties
-def get_parties(metadata_file):
-    root = ET.parse(metadata_file)
-    orgs = root.findall(".//tei:org", TEI_NS)
-    parties = {}
-    for org in orgs:
-
-        if org.attrib["role"] == "politicalParty":
-            name = org.find(".//tei:orgName", TEI_NS).text
-            party_id = org.attrib[f"{XML_NS}id"]
-            parties[party_id] = name
-
-    return parties
-
-
-def get_relations(metadata_file):
-    root = ET.parse(metadata_file)
-    relations = root.findall(".//tei:relation", TEI_NS)
-    return relations
-
-
-# Collect speech types from file
-def get_speech_types(speech_type_file):
-    speech_types = pd.read_csv(
-        speech_type_file, sep="\t", index_col=0, header=None, names=["type"]
-    )
-    speech_types.index = speech_types.index.str.replace("https", "http")
-    speech_types = speech_types.to_dict()["type"]
-
-    return speech_types
 
 
 GOVERNMENTS = ("HS", "FV", "LV", "GOV_HS", "GOV_FV", "GOV_LV")
@@ -143,16 +79,263 @@ headers = {
     "sf_sub_clause": SF_HEADERS,
 }
 
+class Speech:
+    def __init__(self, teispeech, speech_date, speech_year, metadata, mp_affiliations, task_type):
+        self.task_type = task_type
+        self.speech_date = speech_date
+        self.speech_year = speech_year
+        self.author_id = teispeech.attrib["who"][1:]
+        self.mp = metadata["mp_dict"][self.author_id]
+        self.party_id, self.role, self.party_status, self.gov = mp_affiliations[self.author_id]
+        self.party = metadata["parties"].get(self.party_id)
+        self.speaker_type = self.determine_speaker_type(teispeech)
+        self.speech_id = teispeech.attrib["{http://www.w3.org/XML/1998/namespace}id"]
+        self.speech_source = teispeech.attrib["source"]
+        self.speech_type = self.determine_speech_type(self.speech_source, metadata["speech_types"])
+        self.full_speech_text = self.join_speech(teispeech)
+        self.speech = teispeech
+        self.metadata = metadata
+        self.results = []
 
-def get_metadata(metadata_file, speech_type_file, phonetic_dict_file, freq_list):
-    return {
-        "mp_dict": get_mp_data(metadata_file),
-        "parties": get_parties(metadata_file),
-        "relations": get_relations(metadata_file),
-        "speech_types": get_speech_types(speech_type_file),
-        "phone_dict": get_phone_dict(phonetic_dict_file),
-        "freq_dict": get_frq_dict(freq_list)
-    }
+
+    def determine_speaker_type(self):
+        """Determines the type of speaker based on speech annotations."""
+        notes = self.speech.attrib.get("ana", "").split()
+        if "#chair" in notes:
+            return "chair"
+        elif "#guest" in notes:
+            return "guest"
+        else:
+            return "regular"
+
+    def determine_speech_type(self, speech_types):
+        """Determines the type of speech based on the speech source."""
+        base_source = self.speech_source.split("?")[0]
+        try:
+            return speech_types[base_source]
+        except KeyError:
+            return resolve_speech_type_from_pattern(self.speech_source, speech_types)
+
+
+    def join_speech(self):
+
+        text = []
+        for asentence in self.speech.findall(".//tei:s", TEI_NS):
+            for aword in asentence.iter():
+                element_tag = aword.tag.split("}")[-1]
+                if element_tag in ["w", "pc"]:
+                    is_joined = bool(aword.get("join"))
+                    word = aword.text + " " * is_joined
+                    text.append(word)
+        
+        return "".join(text)
+
+    def check_speech(self):
+        for asentence in self.speech.findall(".//tei:s", TEI_NS):
+            sentence = []
+
+            for aword in asentence.iter():
+                element_tag = aword.tag.split("}")[-1]
+                if element_tag in ["w", "pc"]:
+                    word = aword.text
+                    if element_tag == "w":
+                        lemma = aword.get("lemma")
+                    else:
+                        lemma = "NONE"
+                    tag = aword.get("pos")
+                    token = Token(word, lemma, tag)
+                    sentence.append(token)
+
+            full_text = " ".join([token.word for token in sentence])
+            results = check_sentence(sentence, self.task_type, self.metadata)
+
+            for result in results:
+                data = [
+                    self.speech_year,
+                    self.speech_date,
+                    self.speech_type,
+                    self.author_id,
+                    self.mp["sex"],
+                    self.mp["birth"].split("-")[0],
+                    self.role,
+                    self.speaker_type,
+                    self.party_id,
+                    self.party,
+                    self.party_status,
+                    self.gov,
+                    *result,
+                    full_text,
+                    self.speech_source,
+                    self.speech_id,
+                ]
+
+                self.results.append(data)
+
+
+class FileHandler:
+    def __init__(self, metadata, task_type="sf_sub_clause"):
+        self.task_type = task_type
+        self.metadata = metadata
+        self.file_date = None
+        self.file_year = None
+        self.speeches = []
+        self.results = []
+        self.mp_affiliations = {}
+        self.root = None
+
+
+    def process_file(self, teifile, task_type="sf_sub_clause"):
+        self.file_results = []
+        self.root = ET.parse(teifile).getroot()
+
+        self.file_date = self.root.findall(".//tei:bibl/tei:date", TEI_NS)[0].text
+        self.file_year = self.file_date.split("-")[0]
+        self.speeches = self.root.findall(".//tei:u", TEI_NS)
+
+        if self.speeches:
+            mps = set(
+                [speech.attrib["who"][1:] for speech in self.speeches if "who" in speech.attrib]
+            )
+            self.mp_affiliations = {
+                mp: find_current_affiliation(
+                    self.metadata["mp_dict"][mp]["affiliations"],
+                    self.speech_data["speech_date"],
+                    self.metadata["relations"],
+                )
+                for mp in mps
+            }
+
+            for speech in self.speeches:
+                self.process_speech(speech)
+        
+        return self.results
+
+    def process_speech(self, teispeech):
+        if "who" in teispeech.attrib:
+            author_id = teispeech.attrib["who"][1:]
+
+            speech = Speech(
+                teispeech,
+                self.file_date,
+                self.file_year,
+                self.metadata,
+                self.mp_affiliations,
+                self.task_type
+            )
+
+
+
+class CorpusExtractor:
+    def __init__(self, metadata_file, speech_type_file, phonetic_dict_file, freq_list, task_type):
+        self.metadata = self.get_metadata(metadata_file, speech_type_file, phonetic_dict_file, freq_list)
+        self.results = []
+        self.task_type = task_type
+
+    def process_files(self, teifiles):
+        for teifile in teifiles:
+            handler = FileHandler(self.metadata, self.task_type)
+
+    def get_metadata(self, metadata_file, speech_type_file, phonetic_dict_file, freq_list):
+        return {
+            "mp_dict": self.get_mp_data(metadata_file),
+            "parties": self.get_parties(metadata_file),
+            "relations": self.get_relations(metadata_file),
+            "speech_types": self.get_speech_types(speech_type_file),
+            "phone_dict": self.get_phone_dict(phonetic_dict_file),
+            "freq_dict": self.get_frq_dict(freq_list)
+        }
+
+    def get_phone_dict(self, dict_file):
+        data = pd.read_csv(dict_file, sep="\t", header=None)
+        csv_dict = pd.Series(data.iloc[:, -1].values, index=data[0]).to_dict()
+
+        return csv_dict
+
+    def get_frq_dict(self, dict_file: Path):
+        if dict_file.suffix == ".json":
+            with open(dict_file, "r") as json_file:
+                word_dict = json.load(json_file)
+        else:
+            word_dict = defaultdict(lambda: defaultdict(int))
+            data = pd.read_csv(dict_file, sep="\t", header=None)
+            total = len(data)
+            for _, (word, pos, freq) in tqdm(data.iterrows(), desc="Populating freq dict.", total=total):
+                word_dict[word][pos] = freq
+
+            file_name = dict_file.stem
+            dir = dict_file.parent
+            new_file = dir / f"{file_name}.json"
+            print("Saving data to json...")
+            with open(new_file, "w") as json_file:
+                json.dump(word_dict, json_file, indent=4)
+
+        return word_dict
+
+    def get_mp_data(self, metadata_file):
+        mp_dict = dict()
+
+        # get mp person data
+        root = ET.parse(metadata_file)
+        mps = root.findall(".//tei:person", TEI_NS)
+        for mp in mps:
+
+            mp_id = mp.attrib[f"{XML_NS}id"]
+            sex = mp.find(".//tei:sex", TEI_NS).attrib["value"]
+            birth = mp.find(".//tei:birth", TEI_NS).attrib["when"]
+
+            mp_fields = dict()
+            mp_fields["sex"] = sex
+            mp_fields["birth"] = birth
+            affiliations = mp.findall(".//tei:affiliation", TEI_NS)
+            year_from = 3000
+            year_to = 0
+
+            for element in affiliations:
+
+                if "from" in element.attrib:
+                    year_from = min(year_from, int(element.attrib["from"].split("-")[0]))
+                if "to" in element.attrib:
+                    year_to = max(year_to, int(element.attrib["to"].split("-")[0]))
+
+                mp_fields["year_from"] = year_from
+                mp_fields["year_to"] = year_to
+
+            mp_fields["affiliations"] = affiliations
+            mp_dict[mp_id] = mp_fields
+
+        return mp_dict
+
+
+    # Retrieve all parties
+    def get_parties(self, metadata_file):
+        root = ET.parse(metadata_file)
+        orgs = root.findall(".//tei:org", TEI_NS)
+        parties = {}
+        for org in orgs:
+
+            if org.attrib["role"] == "politicalParty":
+                name = org.find(".//tei:orgName", TEI_NS).text
+                party_id = org.attrib[f"{XML_NS}id"]
+                parties[party_id] = name
+
+        return parties
+
+
+    def get_relations(self, metadata_file):
+        root = ET.parse(metadata_file)
+        relations = root.findall(".//tei:relation", TEI_NS)
+        return relations
+
+
+    # Collect speech types from file
+    def get_speech_types(self, speech_type_file):
+        speech_types = pd.read_csv(
+            speech_type_file, sep="\t", index_col=0, header=None, names=["type"]
+        )
+        speech_types.index = speech_types.index.str.replace("https", "http")
+        speech_types = speech_types.to_dict()["type"]
+
+        return speech_types
 
 
 def slices(chunks, slicelen=3):
@@ -162,31 +345,7 @@ def slices(chunks, slicelen=3):
         yield slice
 
 
-def get_phone_dict(dict_file):
-    data = pd.read_csv(dict_file, sep="\t", header=None)
-    csv_dict = pd.Series(data.iloc[:, -1].values, index=data[0]).to_dict()
 
-    return csv_dict
-
-def get_frq_dict(dict_file: Path):
-    if dict_file.suffix == ".json":
-        with open(dict_file, "r") as json_file:
-            word_dict = json.load(json_file)
-    else:
-        word_dict = defaultdict(lambda: defaultdict(int))
-        data = pd.read_csv(dict_file, sep="\t", header=None)
-        total = len(data)
-        for _, (word, pos, freq) in tqdm(data.iterrows(), desc="Populating freq dict.", total=total):
-            word_dict[word][pos] = freq
-
-        file_name = dict_file.stem
-        dir = dict_file.parent
-        new_file = dir / f"{file_name}.json"
-        print("Saving data to json...")
-        with open(new_file, "w") as json_file:
-            json.dump(word_dict, json_file, indent=4)
-
-    return word_dict
 
 
 def check_sentence(sentence, task_type, metadata) -> list[list]:
@@ -382,15 +541,6 @@ def check_party_status(party_id, date, role, relations):
             return "minority"
 
 
-def determine_speaker_type(speech):
-    """Determines the type of speaker based on speech annotations."""
-    notes = speech.attrib.get("ana", "").split()
-    if "#chair" in notes:
-        return "chair"
-    elif "#guest" in notes:
-        return "guest"
-    else:
-        return "regular"
 
 
 def resolve_speech_type_from_pattern(speech_source, speech_types):
@@ -405,50 +555,8 @@ def resolve_speech_type_from_pattern(speech_source, speech_types):
     return "none"
 
 
-def determine_speech_type(speech_source, speech_types):
-    """Determines the type of speech based on the speech source."""
-    base_source = speech_source.split("?")[0]
-    try:
-        return speech_types[base_source]
-    except KeyError:
-        return resolve_speech_type_from_pattern(speech_source, speech_types)
 
 
-def process_speech(
-    speech, mp_affiliations, speech_year, speech_date, metadata, rows, task_type
-):
-    """Processes each speech, extracting relevant data and passing it for further checks."""
-    if "who" in speech.attrib:
-        author_id = speech.attrib["who"][1:]
-        mp = metadata["mp_dict"][author_id]
-        party_id, role, party_status, gov = mp_affiliations[author_id]
-        party = metadata["parties"].get(party_id)
-        speaker_type = determine_speaker_type(speech)
-        speech_id = speech.attrib["{http://www.w3.org/XML/1998/namespace}id"]
-        speech_source = speech.attrib["source"]
-        speech_type = determine_speech_type(speech_source, metadata["speech_types"])
-
-
-
-        check_speech(
-            speech_source,
-            speech_id,
-            speech_type,
-            speech,
-            speech_year,
-            speech_date,
-            author_id,
-            mp,
-            role,
-            speaker_type,
-            party_id,
-            party,
-            party_status,
-            gov,
-            rows,
-            task_type,
-            metadata,
-        )
 
 
 def examineFile(teifile, metadata, task_type="sf_sub_clause"):
@@ -519,80 +627,7 @@ def examineFile(teifile, metadata, task_type="sf_sub_clause"):
 
 #     return new_rows
 
-def join_speech(speech):
 
-    text = []
-    for asentence in speech.findall(".//tei:s", TEI_NS):
-        for aword in asentence.iter():
-            element_tag = aword.tag.split("}")[-1]
-            if element_tag in ["w", "pc"]:
-                is_joined = bool(aword.get("join"))
-                word = aword.text + " " * is_joined
-                text.append(word)
-    
-    return "".join(text)
-
-def check_speech(
-    speech_source,
-    speech_id,
-    speech_type,
-    speech,
-    speech_year,
-    speech_date,
-    author_id,
-    mp,
-    role,
-    speaker_type,
-    party_id,
-    party,
-    party_status,
-    gov,
-    rows,
-    task_type,
-    metadata,
-):
-
-    for asentence in speech.findall(".//tei:s", TEI_NS):
-        sentence = []
-        # if sf_sype == "main":
-        #     token = Token("", "", "<s>")
-        #     sentence.append(token)
-        for aword in asentence.iter():
-            element_tag = aword.tag.split("}")[-1]
-            if element_tag in ["w", "pc"]:
-                word = aword.text
-                if element_tag == "w":
-                    lemma = aword.get("lemma")
-                else:
-                    lemma = "NONE"
-                tag = aword.get("pos")
-                token = Token(word, lemma, tag)
-                sentence.append(token)
-
-        full_text = " ".join([token.word for token in sentence])
-        results = check_sentence(sentence, task_type, metadata)
-
-        for result in results:
-            data = [
-                speech_year,
-                speech_date,
-                speech_type,
-                author_id,
-                mp["sex"],
-                mp["birth"].split("-")[0],
-                role,
-                speaker_type,
-                party_id,
-                party,
-                party_status,
-                gov,
-                *result,
-                full_text,
-                speech_source,
-                speech_id,
-            ]
-
-            rows.append(data)
 
 
 def main():
@@ -604,7 +639,7 @@ def main():
     phonetic_dict_file = data_dir / "ice_pron_dict_north_clear.csv"
     frequency_list = data_dir / "frequency_lists" / "giga_simple_freq.json"
 
-    althingiFiles = list(Path(basedir).rglob("*.xml"))
+    althingiFiles = list(Path(corpus_dir).rglob("*.xml"))
     # year = "2019"
     # althingiFiles = list(Path(corpus_dir / year).rglob("*.xml"))
 
