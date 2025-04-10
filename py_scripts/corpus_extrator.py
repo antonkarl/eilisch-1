@@ -5,7 +5,7 @@ from file_handler import FileHandler
 from collections import defaultdict
 from pathlib import Path
 import xml.etree.ElementTree as ET
-from utils import TEI_NS, XML_NS
+from utils import TEI_NS, XML_NS, headers
 
 
 class CorpusExtractor:
@@ -27,6 +27,19 @@ class CorpusExtractor:
             self.results.extend(results)
 
         self.data = pd.DataFrame(self.results)
+
+    def save_results(self, save_path, file_name = None):
+        save_path.mkdir(parents=True, exist_ok=True)
+
+
+        if file_name:
+            save_path = save_path / f"{file_name}.tsv" 
+        else:
+            save_path = save_path / f"{self.task_type}.tsv"
+
+        self.data.to_csv(
+            save_path, sep="\t", index=False, header=headers[self.task_type]
+        )
 
     def get_metadata(self, speech_type_file, phonetic_dict_file, freq_list):
         return {

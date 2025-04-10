@@ -37,6 +37,8 @@ SF_HEADERS = [
     "finite_verb",
     "non-finite_verb",
     "nfv_freq",
+    "lex_score",
+    "speech_word_count",
     "full_text",
     "speech_source",
     "speech_id",

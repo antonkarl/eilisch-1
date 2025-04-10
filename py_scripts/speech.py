@@ -1,5 +1,8 @@
 from utils import Token, TEI_NS, HS_PATTERN_3, TAGS, TASK_TYPES, VERBS
+from lexicalrichness import LexicalRichness
 import re
+
+MATTR_WINDOW = 500
 
 class Speech:
     def __init__(
@@ -10,6 +13,7 @@ class Speech:
         self.task_type = task_type
         self.speech_date = speech_date
         self.speech_year = speech_year
+        self.word_count = 0
         self.author_id = teispeech.attrib["who"][1:]
         self.mp = metadata["mp_dict"][self.author_id]
         self.party_id, self.role, self.party_status, self.gov = mp_affiliations[
@@ -21,6 +25,8 @@ class Speech:
         self.speech_source = teispeech.attrib["source"]
         self.speech_type = self.determine_speech_type()
         self.full_speech_text = self.join_speech()
+        self.lex_score = self.get_mattr_score()
+
         self.results = []
 
         self.check_speech()
@@ -45,6 +51,20 @@ class Speech:
             return self.resolve_speech_type_from_pattern(
                 self.speech_source, speech_types
             )
+        
+    def get_mattr_score(self):
+        """Calculates the MATTR score for the speech."""
+        lex = LexicalRichness(self.full_speech_text)
+        try:
+            lex_score =  lex.mattr(window_size=MATTR_WINDOW)
+        except ValueError:
+            try:
+                lex_score = lex.ttr
+        
+            except ZeroDivisionError:
+                lex_score = 0.0
+        
+        return lex_score
 
     def join_speech(self):
 
@@ -53,7 +73,9 @@ class Speech:
             for aword in asentence.iter():
                 element_tag = aword.tag.split("}")[-1]
                 if element_tag in ["w", "pc"]:
-                    is_joined = bool(aword.get("join"))
+                    if element_tag == "w":
+                        self.word_count += 1
+                    is_joined = not bool(aword.get("join"))
                     word = aword.text + " " * is_joined
                     text.append(word)
 
@@ -93,6 +115,8 @@ class Speech:
                     self.party_status,
                     self.gov,
                     *result,
+                    self.lex_score,
+                    self.word_count,
                     full_text,
                     self.speech_source,
                     self.speech_id,
