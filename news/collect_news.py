@@ -9,7 +9,7 @@ base_dir = Path("..").resolve()
 if str(base_dir) not in sys.path:
     sys.path.append(str(base_dir))
 
-from collectmp import get_frq_dict, TEI_NS, check_sentence, Token, TASK_TYPES
+from py_scripts.collectmp import get_frq_dict, TEI_NS, check_sentence, Token, TASK_TYPES
 
 
 

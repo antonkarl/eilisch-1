@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from collectmp import examineFile, headers, metadata_name, speech_types_name, get_metadata, TASK_TYPES
+from py_scripts.collectmp import examineFile, headers, metadata_name, speech_types_name, get_metadata, TASK_TYPES
 import pandas as pd
 import argparse
 from pathlib import Path
