@@ -1,6 +1,9 @@
 from collections import namedtuple
 from xml.etree.ElementTree import Element
 from datetime import datetime
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
 
 Token = namedtuple("Token", ["word", "lemma", "tag"])
 Affiliation = namedtuple("Affiliation", ["party", "role", "coalition", "gov"])
@@ -72,6 +75,12 @@ headers = {
     "sf_sub_clause": SF_HEADERS,
 }
 
+
+@dataclass
+class SaveConfig:
+    save_path: Optional[Path] = None
+    years: list[Optional[int]] = field(default_factory=list)
+    person: str = ''
 
 def is_in_timespan(element: Element, date: datetime):
     """

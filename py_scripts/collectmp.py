@@ -1,6 +1,6 @@
 from pathlib import Path
 from corpus_extrator import CorpusExtractor
-from utils import TASK_TYPES
+from utils import TASK_TYPES, SaveConfig
 
 TEST = False
 
@@ -12,8 +12,10 @@ def main():
     speech_type_file = data_dir / "speech_types.tsv"
     phonetic_dict_file = data_dir / "ice_pron_dict_north_clear.csv"
     frequency_list = data_dir / "frequency_lists" / "giga_simple_freq.json"
+    saved_speeches = data_dir / "formality_test"
 
     task_type = TASK_TYPES[1]
+    config = SaveConfig(saved_speeches, [2000, 2021], "THorgerdurGunnarsdottir")
 
     if TEST:
         save_path = data_dir / "tests"
@@ -31,10 +33,11 @@ def main():
         phonetic_dict_file,
         frequency_list,
         task_type,
+        save_data=config
     )
     corpus.process_files(althingiFiles)
 
-    corpus.save_results(save_path, f"new_{task_type}")
+    # corpus.save_results(save_path, f"new_{task_type}")
 
 
 if __name__ == "__main__":

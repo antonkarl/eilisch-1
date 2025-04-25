@@ -29,7 +29,14 @@ class Speech:
 
         self.results = []
 
-        self.check_speech()
+        # self.check_speech()
+
+    def save_speech_text(self, path):
+
+        filename = path / f"{self.author_id}_{self.speech_id}.txt"
+        with open(filename, "w+") as f:
+            f.write(self.full_speech_text)
+
 
     def determine_speaker_type(self):
         """Determines the type of speaker based on speech annotations."""
