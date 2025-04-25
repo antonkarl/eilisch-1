@@ -14,6 +14,8 @@ TASK_TYPES = ["sf_main_clause", "sf_sub_clause", "hardspeech"]
 HS_PATTERN_1 = r"\b\w*[aeiouyáéíóúý]{1,2}[ptk](?![ptk])\w*\b"
 HS_PATTERN_2 = r"\b[^aeiouyáéíóúý\s]*[aeiouyáéíóúý]{1,2}[ptk](?![ptk])\w*\b"
 HS_PATTERN_3 = r".*: [ptkc]_h.*"
+WINDOW = 200
+MATTR_WINDOWS = [100, 300, 500]
 
 # XML namespace
 TEI_NS = {"tei": "http://www.tei-c.org/ns/1.0"}
@@ -40,7 +42,9 @@ SF_HEADERS = [
     "finite_verb",
     "non-finite_verb",
     "nfv_freq",
-    "lex_score",
+    *[f"mattr_{score}" for score in MATTR_WINDOWS],
+    "word_rank_mean",
+    "word_rank_median",
     "speech_word_count",
     "full_text",
     "speech_source",

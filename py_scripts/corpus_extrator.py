@@ -29,11 +29,12 @@ class CorpusExtractor:
 
     def process_files(self, teifiles: list[Path]):
         for teifile in tqdm(teifiles, desc=f"Extracting {self.task_type} data"):
-            try:
-                if int(teifile.parent.stem) not in self.save_data.years:
-                    continue
-            except ValueError:
-                print(teifile)
+            if self.save_data:
+                try:
+                    if int(teifile.parent.stem) not in self.save_data.years:
+                        continue
+                except ValueError:
+                    print(teifile)
             handler = FileHandler(teifile, self.metadata, self.task_type, save_data=self.save_data)
             results = handler.get_results()
             self.results.extend(results)
