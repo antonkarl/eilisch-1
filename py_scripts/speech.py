@@ -191,16 +191,27 @@ class Speech:
         if rank:
             return results[1]
         return results[0]
+    
+    def get_hardspeech_env(self, i: int, sentence: list[Token], max_len=10):
+        start = 0
+        if i > max_len:
+            start = i - max_len
+
+        before = [token.word for token in sentence[start:i]]
+        after = [token.word for token in sentence[(i+1):(i+max_len+1)]]
+
+        return " ".join(before), " ".join(after)
 
     def check_hardspeech(self, sentence: list[Token], rows: list):
 
-        for token in sentence:
+        for i, token in enumerate(sentence):
 
             transcription = self.metadata["phone_dict"].get(token.word.lower(), "")
             match = re.match(HS_PATTERN_3, transcription)
             if match:
                 frq = self.get_word_freq(token)
-                rows.append([token.word, token.lemma, token.tag, frq])
+                before, after = self.get_hardspeech_env(i, sentence)
+                rows.append([before, token.word, after, token.lemma, token.tag, frq])
             # if re.match(HS_PATTERN_2, token.word, flags=re.UNICODE | re.IGNORECASE):
 
     def check_sub_clause(self, sentence, rows):

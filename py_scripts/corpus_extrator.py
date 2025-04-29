@@ -24,7 +24,7 @@ class CorpusExtractor:
         self.save_data = save_data
 
 
-        if save_data:
+        if save_data and save_data.save_path:
             save_data.save_path.mkdir(parents=True, exist_ok=True)
 
     def process_files(self, teifiles: list[Path]):
@@ -34,7 +34,7 @@ class CorpusExtractor:
                     if int(teifile.parent.stem) not in self.save_data.years:
                         continue
                 except ValueError:
-                    print(teifile)
+                    continue
             handler = FileHandler(teifile, self.metadata, self.task_type, save_data=self.save_data)
             results = handler.get_results()
             self.results.extend(results)

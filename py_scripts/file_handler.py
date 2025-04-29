@@ -61,6 +61,11 @@ class FileHandler:
     def process_speech(self, teispeech):
         if "who" in teispeech.attrib:
 
+            author = teispeech.attrib["who"][1:]
+
+            if self.save_data and self.save_data.person != author:
+                return
+
             speech = Speech(
                 teispeech,
                 self.file_date,
