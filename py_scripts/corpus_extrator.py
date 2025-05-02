@@ -5,12 +5,14 @@ from file_handler import FileHandler
 from collections import defaultdict
 from pathlib import Path
 import xml.etree.ElementTree as ET
-from utils import TEI_NS, XML_NS, headers
+from utils import TEI_NS, XML_NS, headers, SaveConfig
+from typing import Optional
+
 
 
 class CorpusExtractor:
     def __init__(
-        self, metadata_file, speech_type_file, phonetic_dict_file, freq_list, task_type
+        self, metadata_file, speech_type_file, phonetic_dict_file, freq_list, task_type, save_data: Optional[SaveConfig] = None
     ):
         self.metadata_root = ET.parse(metadata_file)
         self.metadata = self.get_metadata(
@@ -19,10 +21,21 @@ class CorpusExtractor:
         self.results = []
         self.task_type = task_type
         self.data = None
+        self.save_data = save_data
 
-    def process_files(self, teifiles):
+
+        if save_data and save_data.save_path:
+            save_data.save_path.mkdir(parents=True, exist_ok=True)
+
+    def process_files(self, teifiles: list[Path]):
         for teifile in tqdm(teifiles, desc=f"Extracting {self.task_type} data"):
-            handler = FileHandler(teifile, self.metadata, self.task_type)
+            if self.save_data:
+                try:
+                    if int(teifile.parent.stem) not in self.save_data.years:
+                        continue
+                except ValueError:
+                    continue
+            handler = FileHandler(teifile, self.metadata, self.task_type, save_data=self.save_data)
             results = handler.get_results()
             self.results.extend(results)
 

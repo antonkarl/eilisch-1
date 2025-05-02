@@ -1,14 +1,31 @@
-from utils import TEI_NS, is_in_timespan, DATE_FORMAT, GOVERNMENTS, Affiliation
+from utils import (
+    TEI_NS,
+    is_in_timespan,
+    DATE_FORMAT,
+    GOVERNMENTS,
+    Affiliation,
+    SaveConfig,
+)
 from datetime import datetime
 from speech import Speech
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
+from pathlib import Path
+from typing import Optional
+
 
 class FileHandler:
-    def __init__(self, teifile, metadata, task_type="sf_sub_clause"):
+    def __init__(
+        self,
+        teifile,
+        metadata,
+        task_type="sf_sub_clause",
+        save_data: Optional[SaveConfig] = None,
+    ):
         self.root = ET.parse(teifile).getroot()
         self.task_type = task_type
         self.metadata = metadata
+        self.save_data = save_data
         self.file_date = self.root.findall(".//tei:bibl/tei:date", TEI_NS)[0].text
         self.file_year = self.file_date.split("-")[0]
         self.speeches = self.root.findall(".//tei:u", TEI_NS)
@@ -44,6 +61,11 @@ class FileHandler:
     def process_speech(self, teispeech):
         if "who" in teispeech.attrib:
 
+            author = teispeech.attrib["who"][1:]
+
+            if self.save_data and self.save_data.person != author:
+                return
+
             speech = Speech(
                 teispeech,
                 self.file_date,
@@ -53,7 +75,19 @@ class FileHandler:
                 self.task_type,
             )
 
-            results = speech.get_results()
+            if not self.save_data or (
+                int(self.file_year) in self.save_data.years
+                and speech.author_id == self.save_data.person
+            ):
+                speech.check_speech()
+                results = speech.get_results()
+
+                if self.save_data and self.save_data.save_path:
+                    speech.save_speech_text(self.save_data.save_path)
+            
+            else:
+                results = []
+
             self.results.extend(results)
 
     def find_current_affiliation(

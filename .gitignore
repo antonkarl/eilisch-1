@@ -1,9 +1,16 @@
-data
+# Environment and system files
+.env
+.DS_Store
+.R*
+.vscode
+
+# Python-related files
 __pycache__
+.ipynb_checkpoints
+
+# Project-specific files
+data
 glf_files
 mps
 plots
-.ipynb_checkpoints
-.env
-.R*
-.DS_Store
+gpt_mattr

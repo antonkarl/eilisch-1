@@ -1,6 +1,9 @@
 from collections import namedtuple
 from xml.etree.ElementTree import Element
 from datetime import datetime
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
 
 Token = namedtuple("Token", ["word", "lemma", "tag"])
 Affiliation = namedtuple("Affiliation", ["party", "role", "coalition", "gov"])
@@ -11,6 +14,8 @@ TASK_TYPES = ["sf_main_clause", "sf_sub_clause", "hardspeech"]
 HS_PATTERN_1 = r"\b\w*[aeiouyáéíóúý]{1,2}[ptk](?![ptk])\w*\b"
 HS_PATTERN_2 = r"\b[^aeiouyáéíóúý\s]*[aeiouyáéíóúý]{1,2}[ptk](?![ptk])\w*\b"
 HS_PATTERN_3 = r".*: [ptkc]_h.*"
+WINDOW = 200
+MATTR_WINDOWS = [100, 300, 500]
 
 # XML namespace
 TEI_NS = {"tei": "http://www.tei-c.org/ns/1.0"}
@@ -37,7 +42,9 @@ SF_HEADERS = [
     "finite_verb",
     "non-finite_verb",
     "nfv_freq",
-    "lex_score",
+    *[f"mattr_{score}" for score in MATTR_WINDOWS],
+    "word_rank_mean",
+    "word_rank_median",
     "speech_word_count",
     "full_text",
     "speech_source",
@@ -57,10 +64,16 @@ HS_HEADERS = [
     "party_name",
     "party_status",
     "gov",
+    "before",
     "word",
+    "after",
     "lemma",
     "pos",
     "word_freq",
+    *[f"mattr_{score}" for score in MATTR_WINDOWS],
+    "word_rank_mean",
+    "word_rank_median",
+    "speech_word_count",
     "full_text",
     "speech_source",
     "speech_id",
@@ -71,6 +84,20 @@ headers = {
     "sf_main_clause": SF_HEADERS,
     "sf_sub_clause": SF_HEADERS,
 }
+
+
+@dataclass
+class SaveConfig:
+    save_path: Optional[Path] = None
+    years: list[Optional[int]] = field(default_factory=list)
+    timespans: list[Optional[int]] = field(default_factory=list)
+    person: str = ''
+    max_year: int = 2024
+
+    def __post_init__(self):
+        if self.timespans:
+            for start, end in self.timespans:
+                self.years.extend(list(range(start, end + 1)))
 
 
 def is_in_timespan(element: Element, date: datetime):
