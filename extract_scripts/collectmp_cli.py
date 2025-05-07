@@ -1,29 +1,21 @@
 #!/usr/bin/env python
 
-# from py_scripts.collectmp import examineFile, headers, metadata_name, speech_types_name, get_metadata, TASK_TYPES
-from utils import (
-    headers,
-    TASK_TYPES,
-    METADATA_FILE,
-    SPEECH_TYPES_FILE,
-    PHONE_DICT,
-    FREQ_DICT
-)
+from utils import TASK_TYPES, METADATA_FILE, SPEECH_TYPES_FILE, PHONE_DICT, FREQ_DICT, SaveConfig
 from corpus_extrator import CorpusExtractor
-import pandas as pd
-import argparse
 from pathlib import Path
-from tqdm import tqdm
+import argparse
 import sys
+import json
 
-def check_path(path, default):
+
+def check_path(path):
     if not path:
-        path = Path(".", default)
+        return
 
     if not path.exists():
         print(f"Error: The path {path} does not exist.")
         sys.exit(1)
-    
+
     return path
 
 
@@ -57,21 +49,21 @@ def main():
         "--speech-types",
         type=Path,
         help=f"An optional path to a speech type tsv, needed to parse the XML files. Defaults to '{SPEECH_TYPES_FILE}'.",
-        default=None,
+        default=Path(".", SPEECH_TYPES_FILE),
     )
 
     parser.add_argument(
         "--freq-dict",
         type=Path,
         help=f"An optional path to a word frequency dict, needed to parse the XML files. Defaults to '{FREQ_DICT}'.",
-        default=None,
+        default=Path(".", FREQ_DICT),
     )
 
     parser.add_argument(
         "--phonetic-dict",
         type=Path,
         help=f"An optional path to a phonetic dictionary, needed to parse XML files for hardspeech. Defaults to '{PHONE_DICT}'.",
-        default=None,
+        default=Path(".", PHONE_DICT),
     )
 
     parser.add_argument(
@@ -79,6 +71,13 @@ def main():
         type=Path,
         help="Optional path to save the output TSV file. Defaults to the current working directory.",
         default=Path("."),
+    )
+
+    parser.add_argument(
+        "--config-file",
+        type=Path,
+        help=f"An optional path to a config.json file, used to only extract data specified in the config file.",
+        default=None,
     )
 
     args = parser.parse_args()
@@ -107,24 +106,48 @@ def main():
         sys.exit(1)
 
     speech_path = args.speech_types
-    speech_path = check_path(speech_path, SPEECH_TYPES_FILE)
+    speech_path = check_path(speech_path)
 
     freq_dict_path = args.freq_dict
-    freq_dict_path = check_path(freq_dict_path, FREQ_DICT)
+    freq_dict_path = check_path(freq_dict_path)
 
     phonetic_dict_path = args.phonetic_dict
-    phonetic_dict_path = check_path(phonetic_dict_path, PHONE_DICT)
+    phonetic_dict_path = check_path(phonetic_dict_path)
+
+    config_path = args.config_file
+    config_path = check_path(config_path)
+
+    configs = []
+    if config_path:
+        with open(config_path, "r") as config_file:
+            json_dict = json.load(config_file)
+            configs = [SaveConfig(**config) for config in json_dict["configs"]]
+
 
     output_dir = args.out_path.resolve()
     if not output_dir.exists():
         print(f"Error: The chosen output directory '{output_dir}' does not exist.")
         sys.exit(1)
 
-    corpus = CorpusExtractor(
-        metadata, speech_path, phonetic_dict_path, freq_dict_path, args.task_type
-    )
-    corpus.process_files(xml_files)
-    corpus.save_results(output_dir)
+    if configs:
+        for config in configs:
+            print("Extracting from", config)
+            corpus = CorpusExtractor(
+                metadata, speech_path, phonetic_dict_path, freq_dict_path, args.task_type, config
+            )
+            corpus.process_files(xml_files)
+            if not config.person:
+                corpus.save_results(output_dir)
+            else:
+                corpus.save_results(output_dir, config.person)
+    
+    else:
+        corpus = CorpusExtractor(
+            metadata, speech_path, phonetic_dict_path, freq_dict_path, args.task_type, config
+        )
+        corpus.process_files(xml_files)
+        corpus.save_results(output_dir)
+        
 
 
 if __name__ == "__main__":

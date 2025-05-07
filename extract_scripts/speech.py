@@ -1,10 +1,21 @@
-from utils import Token, TEI_NS, HS_PATTERN_3, TAGS, TASK_TYPES, VERBS, WINDOW, MATTR_WINDOWS
+from utils import Token, TEI_NS, HS_PATTERN, TAGS, TASK_TYPES, VERBS, WINDOW, MATTR_WINDOWS
 from lexicalrichness import LexicalRichness
 import re
 from statistics import median
 
 
 class Speech:
+    """
+    Initialize the Speech object with TEI speech data, metadata, and task type.
+
+    Args:
+        teispeech: XML element representing the speech.
+        speech_date: Date of the speech in "YYYY-MM-DD" format.
+        speech_year: Year of the speech as a string.
+        metadata: Metadata dictionary containing information about MPs, parties, etc.
+        mp_affiliations: Dictionary mapping MP IDs to their affiliations.
+        task_type: Type of task to perform (e.g., "sf_sub_clause").
+    """
     def __init__(
         self, teispeech, speech_date, speech_year, metadata, mp_affiliations, task_type
     ):
@@ -40,13 +51,23 @@ class Speech:
         self.results = []
 
     def save_speech_text(self, path):
+        """
+        Save the full speech text to a file.
 
+        Args:
+            path: Directory path where the speech text will be saved.
+        """
         filename = path / f"{self.author_id}_{self.speech_id}.txt"
         with open(filename, "w+") as f:
             f.write(self.full_speech_text)
 
     def determine_speaker_type(self):
-        """Determines the type of speaker based on speech annotations."""
+        """
+        Determines the type of speaker based on speech annotations.
+
+        Returns:
+            str: Speaker type (e.g., "chair", "guest", or "regular").
+        """
         notes = self.speech.attrib.get("ana", "").split()
         if "#chair" in notes:
             return "chair"
@@ -56,7 +77,12 @@ class Speech:
             return "regular"
 
     def determine_speech_type(self):
-        """Determines the type of speech based on the speech source."""
+        """
+        Determines the type of speech based on the speech source.
+
+        Returns:
+            str: Speech type description.
+        """
         speech_types = self.metadata["speech_types"]
         base_source = self.speech_source.split("?")[0]
         try:
@@ -67,7 +93,15 @@ class Speech:
             )
         
     def get_mattr_score(self, window_size=WINDOW):
-        """Calculates the MATTR score for the speech."""
+        """
+        Calculates the MATTR score for the speech.
+
+        Args:
+            window_size: Size of the moving window for MATTR calculation.
+
+        Returns:
+            float: MATTR score.
+        """
         lex = LexicalRichness(self.full_speech_text)
         try:
             lex_score =  lex.mattr(window_size=window_size)
@@ -81,6 +115,15 @@ class Speech:
         return lex_score
     
     def get_token(self, aword):
+        """
+        Extracts a token from an XML word element.
+
+        Args:
+            aword: XML element representing a word.
+
+        Returns:
+            Token: A Token object containing word, lemma, and tag information.
+        """
         element_tag = aword.tag.split("}")[-1]
         if element_tag in ["w", "pc"]:
             word = aword.text
@@ -92,7 +135,12 @@ class Speech:
             return Token(word, lemma, tag)
 
     def join_speech(self):
+        """
+        Joins all words in the speech into a single text string.
 
+        Returns:
+            str: Full speech text.
+        """
         text = []
         for asentence in self.speech.findall(".//tei:s", TEI_NS):
             for aword in asentence.iter():
@@ -108,6 +156,9 @@ class Speech:
         return "".join(text)
 
     def check_speech(self):
+        """
+        Processes the speech to extract results based on the task type.
+        """
         for asentence in self.speech.findall(".//tei:s", TEI_NS):
             sentence = []
 
@@ -147,25 +198,39 @@ class Speech:
                 self.results.append(data)
 
     def get_results(self):
+        """
+        Retrieve the results of processing the speech.
+
+        Returns:
+            list: List of extracted results.
+        """
         return self.results
 
     def slices(self, chunks, slicelen=3):
-        """Yields all squences of n length (default is 3) from a list of elements"""
+        """
+        Yields all sequences of a specified length from a list of elements.
+
+        Args:
+            chunks: List of elements to slice.
+            slicelen: Length of each slice (default is 3).
+
+        Yields:
+            list: Slices of the specified length.
+        """
         for idx in range(len(chunks) - slicelen + 1):
             slice = chunks[idx : idx + slicelen]
             yield slice
 
     def check_sentence(self, sentence) -> list[list]:
         """
-        Checks if the given sentence has the environment for stylization.
+        Checks if the given sentence based on the given task type.
 
         Args:
-            sentence (list[Token])
+            sentence: List of Token objects representing the sentence.
 
         Returns:
-            list[list]: Sentence results, including presence of stylization, sequence text and included verbs.
+            list[list]: Sentence results depending on task type.
         """
-
         rows = []
 
         if self.task_type == TASK_TYPES[0]:
@@ -178,6 +243,16 @@ class Speech:
         return rows
 
     def get_word_freq(self, token: Token, rank=False):
+        """
+        Retrieves the frequency or rank of a word based on its lemma and tag.
+
+        Args:
+            token: Token object containing word, lemma, and tag information.
+            rank: Whether to return the rank instead of frequency (default is False).
+
+        Returns:
+            int: Frequency or rank of the word.
+        """
         if token.tag.startswith("n"):
             tag = token.tag[:2]
         else:
@@ -193,6 +268,17 @@ class Speech:
         return results[0]
     
     def get_hardspeech_env(self, i: int, sentence: list[Token], max_len=10):
+        """
+        Retrieves the context (before and after) of a word in a sentence.
+
+        Args:
+            i: Index of the word in the sentence.
+            sentence: List of Token objects representing the sentence.
+            max_len: Maximum number of words to include in the context (default is 10).
+
+        Returns:
+            tuple: Context before and after the word as strings.
+        """
         start = 0
         if i > max_len:
             start = i - max_len
@@ -203,19 +289,31 @@ class Speech:
         return " ".join(before), " ".join(after)
 
     def check_hardspeech(self, sentence: list[Token], rows: list):
+        """
+        Checks for hard speech patterns in a sentence.
 
+        Args:
+            sentence: List of Token objects representing the sentence.
+            rows: List to store the results of the check.
+        """
         for i, token in enumerate(sentence):
 
             transcription = self.metadata["phone_dict"].get(token.word.lower(), "")
-            match = re.match(HS_PATTERN_3, transcription)
+            match = re.match(HS_PATTERN, transcription)
             if match:
                 frq = self.get_word_freq(token)
                 before, after = self.get_hardspeech_env(i, sentence)
-                rows.append([before, token.word, after, token.lemma, token.tag, frq])
+                rows.append([before, token.word, after, "", match.group(1), token.lemma, token.tag, frq])
             # if re.match(HS_PATTERN_2, token.word, flags=re.UNICODE | re.IGNORECASE):
 
     def check_sub_clause(self, sentence, rows):
+        """
+        Checks for SF patterns in a sentence's sub-clause.
 
+        Args:
+            sentence: List of Token objects representing the sentence.
+            rows: List to store the results of the check.
+        """
         for slice in self.slices(sentence):
             if slice[0].lemma == "sem" and slice[0].tag == "ct":
 
@@ -244,7 +342,13 @@ class Speech:
                     )
 
     def check_main_clause(self, sent, rows: list):
+        """
+        Checks for SF patterns in a sentence's main clause.
 
+        Args:
+            sent: List of Token objects representing the sentence.
+            rows: List to store the results of the check.
+        """
         if len(sent) <= 3:
             return
 
@@ -265,7 +369,16 @@ class Speech:
             rows.append([1, text, VERBS[sent[1].lemma], sent[0].lemma])
 
     def resolve_speech_type_from_pattern(self, speech_source, speech_types):
-        """Attempts to resolve speech type using regex if not directly found."""
+        """
+        Attempts to resolve speech type using regex if not directly found.
+
+        Args:
+            speech_source: Source string of the speech.
+            speech_types: Dictionary mapping sources to speech types.
+
+        Returns:
+            str: Resolved speech type or "none" if not found.
+        """
         pattern = r"=(\d+)"
         results = re.findall(pattern, speech_source)
         if results:

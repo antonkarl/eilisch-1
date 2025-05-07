@@ -8,17 +8,17 @@ from typing import Optional
 Token = namedtuple("Token", ["word", "lemma", "tag"])
 Affiliation = namedtuple("Affiliation", ["party", "role", "coalition", "gov"])
 
+EXTRACTION_DATA_PATH = Path("./extraction_data")
+
 METADATA_FILE = "IGC-Parla-22.10.ana.xml"
-SPEECH_TYPES_FILE = "../data/extraction_data/speech_types.tsv"
-PHONE_DICT = "../data/extraction_data/ice_pron_dict_north_clear.tsv"
-FREQ_DICT = "../data/extraction_data/giga_simple_freq_2.json"
+SPEECH_TYPES_FILE = EXTRACTION_DATA_PATH / "speech_types.tsv"
+PHONE_DICT = EXTRACTION_DATA_PATH / "ice_pron_dict_north_clear.tsv"
+FREQ_DICT = EXTRACTION_DATA_PATH / "giga_simple_freq_2.json"
 
 VERBS = {"vera": "be", "hafa": "have", "munu": "mod", "skulu": "mod"}
 TAGS = ("sþ", "ss", "sn")
 TASK_TYPES = ["sf_main_clause", "sf_sub_clause", "hardspeech"]
-HS_PATTERN_1 = r"\b\w*[aeiouyáéíóúý]{1,2}[ptk](?![ptk])\w*\b"
-HS_PATTERN_2 = r"\b[^aeiouyáéíóúý\s]*[aeiouyáéíóúý]{1,2}[ptk](?![ptk])\w*\b"
-HS_PATTERN_3 = r".*: [ptkc]_h.*"
+HS_PATTERN = r".*: ([ptkc])_h.*"
 WINDOW = 200
 MATTR_WINDOWS = [100, 300, 500]
 
@@ -72,6 +72,8 @@ HS_HEADERS = [
     "before",
     "word",
     "after",
+    "is_hardspeech",
+    "plosive",
     "lemma",
     "pos",
     "word_freq",
@@ -103,6 +105,20 @@ class SaveConfig:
         if self.timespans:
             for start, end in self.timespans:
                 self.years.extend(list(range(start, end + 1)))
+        
+        if isinstance(self.save_path, str):
+            self.save_path = Path(self.save_path)
+        
+        if self.person:
+            self.save_path = self.save_path / self.person
+    
+    def __str__(self):
+        text = ""
+        if self.person:
+            text = self.person
+        else:
+            text = f"{min(self.years)}-{max(self.years)}"
+        return f"Config<{text}>"
 
 
 def is_in_timespan(element: Element, date: datetime):
@@ -128,13 +144,3 @@ def is_in_timespan(element: Element, date: datetime):
     if date_from <= date <= date_to:
         return True
     return False
-
-# def clean_hardspeech(rows: list):
-#     new_rows = []
-#     word_list = [row[11] for row in rows]
-#     split_words = get_word_splits(word_list)
-#     for i, word in enumerate(split_words):
-#         if re.match(HS_PATTERN_2, word, flags=re.IGNORECASE | re.UNICODE):
-#             new_rows.append(rows[i])
-
-#     return new_rows

@@ -15,6 +15,16 @@ from typing import Optional
 
 
 class FileHandler:
+    """
+    Initialize the FileHandler with a TEI file, metadata, task type, and optional save configuration.
+
+    Args:
+        teifile: Path to the TEI file to process.
+        metadata: Metadata dictionary containing information about MPs, parties, etc.
+        task_type: Type of task to perform (default is "sf_sub_clause").
+        save_data: Optional configuration for saving data.
+    """
+
     def __init__(
         self,
         teifile,
@@ -32,12 +42,26 @@ class FileHandler:
         self.results = []
         self.mp_affiliations = {}
 
-        self.process_file()
+        if not (self.save_data and self.save_data.years) or (
+            int(self.file_year) in self.save_data.years
+        ):
+            self.process_file()
 
     def get_results(self):
+        """
+        Retrieve the results of processing the TEI file.
+
+        Returns:
+            A list of results extracted from the TEI file.
+        """
         return self.results
 
     def process_file(self):
+        """
+        Process the TEI file to extract speeches and affiliations.
+
+        This method identifies MPs and their affiliations, then processes each speech in the file.
+        """
         if self.speeches:
             mps = set(
                 [
@@ -59,6 +83,12 @@ class FileHandler:
                 self.process_speech(speech)
 
     def process_speech(self, teispeech):
+        """
+        Process an individual speech element from the TEI file.
+
+        Args:
+            teispeech: An XML element representing a speech.
+        """
         if "who" in teispeech.attrib:
 
             author = teispeech.attrib["who"][1:]
@@ -75,18 +105,11 @@ class FileHandler:
                 self.task_type,
             )
 
-            if not self.save_data or (
-                int(self.file_year) in self.save_data.years
-                and speech.author_id == self.save_data.person
-            ):
-                speech.check_speech()
-                results = speech.get_results()
+            speech.check_speech()
+            results = speech.get_results()
 
-                if self.save_data and self.save_data.save_path:
-                    speech.save_speech_text(self.save_data.save_path)
-            
-            else:
-                results = []
+            if self.save_data and self.save_data.save_path:
+                speech.save_speech_text(self.save_data.save_path)
 
             self.results.extend(results)
 
@@ -97,13 +120,13 @@ class FileHandler:
         Finds the current affiliation (party and role) of a person based on the provided date.
 
         Args:
-            affiliations (list[Element]): List of affiliation elements with time spans.
-            date (str): Date to check in "YYYY-MM-DD" format.
+            affiliations: List of affiliation elements with time spans.
+            date: Date to check in "YYYY-MM-DD" format.
+            relations: List of relations to determine party status.
 
         Returns:
             Affiliation: An object containing the party, role, and party status.
         """
-
         date = datetime.strptime(date, DATE_FORMAT)
 
         party = role = gov = None
@@ -138,15 +161,15 @@ class FileHandler:
         Determines the party's status (majority or minority) based on the role and date.
 
         Args:
-            party_id (str): The ID of the party.
-            date (datetime): The date to check for party status.
-            role (str): The role of the individual (e.g., "minister").
+            party_id: The ID of the party.
+            date: The date to check for party status.
+            role: The role of the individual (e.g., "minister").
+            relations: List of relations to determine majority or minority status.
 
         Returns:
             str: "majority" if the party is in the majority or the role is minister,
                 "minority" if not, or None if no party ID is provided.
         """
-
         if role == "minister":
             return "majority"
         elif not party_id:
