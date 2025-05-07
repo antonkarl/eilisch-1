@@ -11,15 +11,87 @@ import json
 def check_path(path):
     if not path:
         return
-
     if not path.exists():
-        print(f"Error: The path {path} does not exist.")
+        print(f"Error: The path {path} does not exist. Please check the file or directory and try again.")
         sys.exit(1)
-
     return path
 
 
-def main():
+def validate_args(args):
+    if not args.xml_path.exists():
+        print(f"Error: The path {args.xml_path} does not exist.")
+        sys.exit(1)
+
+    path_is_dir = args.xml_path.is_dir()
+
+    if path_is_dir:
+        xml_files = list(args.xml_path.rglob("*.xml"))
+        metadata = args.metadata or (args.xml_path / METADATA_FILE)
+    else:
+        xml_files = [args.xml_path]
+        metadata = args.metadata
+
+        if not metadata:
+            print(
+                "Error: Providing a metadata file is required when processing a single file"
+            )
+            sys.exit(1)
+
+    if not metadata.exists():
+        print(f"Error: Metadata file '{metadata}' not found.")
+        sys.exit(1)
+
+    speech_path = args.speech_types
+    speech_path = check_path(speech_path)
+
+    freq_dict_path = args.freq_dict
+    freq_dict_path = check_path(freq_dict_path)
+
+    phonetic_dict_path = args.phonetic_dict
+    phonetic_dict_path = check_path(phonetic_dict_path)
+
+    output_dir = args.out_path.resolve()
+    if not output_dir.exists():
+        print(f"Error: The chosen output directory '{output_dir}' does not exist.")
+        sys.exit(1)
+
+    return xml_files, metadata, speech_path, freq_dict_path, phonetic_dict_path
+
+
+def load_configs(config_path):
+    configs = []
+    if config_path:
+        config_path = check_path(config_path)
+        with open(config_path, "r") as config_file:
+            json_dict = json.load(config_file)
+            if "configs" not in json_dict:
+                print("Error: Config file must contain a 'configs' key.")
+                sys.exit(1)
+            configs = [SaveConfig(**config) for config in json_dict["configs"]]
+    return configs
+
+
+def process_configs(configs, args, xml_files, metadata, speech_path, freq_dict_path, phonetic_dict_path):
+    if configs:
+        for config in configs:
+            print("Extracting from", config)
+            corpus = CorpusExtractor(
+                metadata, speech_path, phonetic_dict_path, freq_dict_path, args.task_type, config
+            )
+            corpus.process_files(xml_files)
+            if not config.person:
+                corpus.save_results(args.out_path.resolve())
+            else:
+                corpus.save_results(args.out_path.resolve(), config.person)
+    else:
+        corpus = CorpusExtractor(
+            metadata, speech_path, phonetic_dict_path, freq_dict_path, args.task_type, None
+        )
+        corpus.process_files(xml_files)
+        corpus.save_results(args.out_path.resolve())
+
+
+def parse_args():
     parser = argparse.ArgumentParser(
         description="Process IGC-PARLA corpus files and output a TSV file with stylistic fronting or hardspeech data."
     )
@@ -80,74 +152,14 @@ def main():
         default=None,
     )
 
-    args = parser.parse_args()
-
-    if not args.xml_path.exists():
-        print(f"Error: The path {args.xml_path} does not exist.")
-        sys.exit(1)
-
-    path_is_dir = args.xml_path.is_dir()
-
-    if path_is_dir:
-        xml_files = list(args.xml_path.rglob("*.xml"))
-        metadata = args.metadata or (args.xml_path / METADATA_FILE)
-    else:
-        xml_files = [args.xml_path]
-        metadata = args.metadata
-
-        if not metadata:
-            print(
-                "Error: Providing a metadata file is required when processing a single file"
-            )
-            sys.exit(1)
-
-    if not metadata.exists():
-        print(f"Error: Metadata file '{metadata}' not found.")
-        sys.exit(1)
-
-    speech_path = args.speech_types
-    speech_path = check_path(speech_path)
-
-    freq_dict_path = args.freq_dict
-    freq_dict_path = check_path(freq_dict_path)
-
-    phonetic_dict_path = args.phonetic_dict
-    phonetic_dict_path = check_path(phonetic_dict_path)
-
-    config_path = args.config_file
-    config_path = check_path(config_path)
-
-    configs = []
-    if config_path:
-        with open(config_path, "r") as config_file:
-            json_dict = json.load(config_file)
-            configs = [SaveConfig(**config) for config in json_dict["configs"]]
+    return parser.parse_args()
 
 
-    output_dir = args.out_path.resolve()
-    if not output_dir.exists():
-        print(f"Error: The chosen output directory '{output_dir}' does not exist.")
-        sys.exit(1)
-
-    if configs:
-        for config in configs:
-            print("Extracting from", config)
-            corpus = CorpusExtractor(
-                metadata, speech_path, phonetic_dict_path, freq_dict_path, args.task_type, config
-            )
-            corpus.process_files(xml_files)
-            if not config.person:
-                corpus.save_results(output_dir)
-            else:
-                corpus.save_results(output_dir, config.person)
-    
-    else:
-        corpus = CorpusExtractor(
-            metadata, speech_path, phonetic_dict_path, freq_dict_path, args.task_type, config
-        )
-        corpus.process_files(xml_files)
-        corpus.save_results(output_dir)
-        
+def main():
+    args = parse_args()
+    xml_files, metadata, speech_path, freq_dict_path, phonetic_dict_path = validate_args(args)
+    configs = load_configs(args.config_file)
+    process_configs(configs, args, xml_files, metadata, speech_path, freq_dict_path, phonetic_dict_path)
 
 
 if __name__ == "__main__":
