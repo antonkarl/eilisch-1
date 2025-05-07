@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # from py_scripts.collectmp import examineFile, headers, metadata_name, speech_types_name, get_metadata, TASK_TYPES
-from extract_scripts.utils import (
+from utils import (
     headers,
     TASK_TYPES,
     METADATA_FILE,
