@@ -9,7 +9,7 @@ from utils import (
     PHONE_DICT,
     FREQ_DICT
 )
-from extract_scripts.corpus_extrator import CorpusExtractor
+from corpus_extrator import CorpusExtractor
 import pandas as pd
 import argparse
 from pathlib import Path
@@ -125,9 +125,6 @@ def main():
     )
     corpus.process_files(xml_files)
     corpus.save_results(output_dir)
-
-    # data = process_files(xml_files, metadata, speech_path, args.task_type)
-    # save_tsv_file(data, output_dir, args.task_type)
 
 
 if __name__ == "__main__":

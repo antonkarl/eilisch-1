@@ -9,9 +9,9 @@ Token = namedtuple("Token", ["word", "lemma", "tag"])
 Affiliation = namedtuple("Affiliation", ["party", "role", "coalition", "gov"])
 
 METADATA_FILE = "IGC-Parla-22.10.ana.xml"
-SPEECH_TYPES_FILE = "data/extraction_data/speech_types.tsv"
-PHONE_DICT = "data/extraction_data/ice_pron_dict_north_clear.tsv"
-FREQ_DICT = "data/extraction_data/giga_simple_freq_2.json"
+SPEECH_TYPES_FILE = "../data/extraction_data/speech_types.tsv"
+PHONE_DICT = "../data/extraction_data/ice_pron_dict_north_clear.tsv"
+FREQ_DICT = "../data/extraction_data/giga_simple_freq_2.json"
 
 VERBS = {"vera": "be", "hafa": "have", "munu": "mod", "skulu": "mod"}
 TAGS = ("sþ", "ss", "sn")

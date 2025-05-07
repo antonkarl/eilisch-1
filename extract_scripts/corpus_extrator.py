@@ -54,6 +54,8 @@ class CorpusExtractor:
             save_path, sep="\t", index=False, header=headers[self.task_type]
         )
 
+        print("Data saved to", save_path)
+
     def get_metadata(self, speech_type_file, phonetic_dict_file, freq_list):
         return {
             "mp_dict": self.get_mp_data(),
