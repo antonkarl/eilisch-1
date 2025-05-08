@@ -18,7 +18,7 @@ FREQ_DICT = EXTRACTION_DATA_PATH / "giga_simple_freq_2.json"
 VERBS = {"vera": "be", "hafa": "have", "munu": "mod", "skulu": "mod"}
 TAGS = ("sþ", "ss", "sn")
 TASK_TYPES = ["sf_main_clause", "sf_sub_clause", "hardspeech"]
-HS_PATTERN = r".*: ([ptkc])_h.*"
+HS_PATTERN = r".*[^cfhkl0mnprstvgCDNGT] ([ptkc])_h.*"
 WINDOW = 200
 MATTR_WINDOWS = [100, 300, 500]
 
@@ -106,11 +106,12 @@ class SaveConfig:
             for start, end in self.timespans:
                 self.years.extend(list(range(start, end + 1)))
         
-        if isinstance(self.save_path, str):
-            self.save_path = Path(self.save_path)
-        
-        if self.person:
-            self.save_path = self.save_path / self.person
+        if self.save_path:
+            if isinstance(self.save_path, str):
+                self.save_path = Path(self.save_path)
+            
+            if self.person:
+                self.save_path = self.save_path / self.person
     
     def __str__(self):
         text = ""

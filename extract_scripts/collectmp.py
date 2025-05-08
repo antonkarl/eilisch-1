@@ -19,15 +19,15 @@ def main():
     # config = SaveConfig(saved_speeches, [2000, 2021], "THorgerdurGunnarsdottir"
 
     configs = [
-        SaveConfig(person="LogiEinarsson"),
-        SaveConfig(person="IngaSaeland"),
-        SaveConfig(person="KristjanJuliusson"),
-        SaveConfig(person="BjornGislason1959"),
-        SaveConfig(person="ValgerdurGunnarsdottir1955"),
-        SaveConfig(person="BjarkeyGunnarsdottir"),
-        SaveConfig(person="BirkirJonsson"),
-        SaveConfig(person="HoskuldurTHorhallsson"),
-        SaveConfig(person="AnnaArnadottir"),
+        SaveConfig(person="LogiEinarsson", timespans=[[2010, 2021]]),
+        SaveConfig(person="IngaSaeland", timespans=[[2017,2021]]),
+        SaveConfig(person="KristjanJuliusson", timespans=[[2007, 2021]]),
+        SaveConfig(person="BjornGislason1959", timespans=[[1990, 2017]]),
+        SaveConfig(person="ValgerdurGunnarsdottir1955", timespans=[[2013, 2020]]),
+        SaveConfig(person="BjarkeyGunnarsdottir", timespans=[[2004, 2021]]),
+        SaveConfig(person="BirkirJonsson", timespans=[[2003, 2013]]),
+        SaveConfig(person="HoskuldurTHorhallsson", timespans=[[2007, 2016]]),
+        SaveConfig(person="AnnaArnadottir", timespans=[[2017,2021]]),
     ]
 
     if TEST:
