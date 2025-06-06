@@ -18,7 +18,8 @@ FREQ_DICT = EXTRACTION_DATA_PATH / "giga_simple_freq_2.json"
 VERBS = {"vera": "be", "hafa": "have", "munu": "mod", "skulu": "mod"}
 TAGS = ("sþ", "ss", "sn")
 TASK_TYPES = ["sf_main_clause", "sf_sub_clause", "hardspeech"]
-HS_PATTERN = r".*[^cfhkl0mnprstvgCDNGT] ([ptkc])_h.*"
+HS_PATTERN = r".*[^cfhkpstvglmnr0CDNGT] ([ptkc])_h.*"
+HS_VOICED_PATTERN = r".*[lmnr]_0 ([ptkc])[^_].*"
 WINDOW = 200
 MATTR_WINDOWS = [100, 300, 500]
 
