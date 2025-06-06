@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/Users/atlisa/Library/Caches/pypoetry/virtualenvs/eilisch-_JKlGsFC-py3.12/bin/python
 from numbers_parser import Document
 from pathlib import Path
 import pandas as pd
@@ -19,7 +19,7 @@ int_columns = [
     ]
 
 def get_numbers_data(filename: str) -> pd.DataFrame:
-    doc = Document("../data/yfirfarið-GLF/agustagustsson-corrected.numbers")
+    doc = Document(filename)
     sheet = doc.sheets[0]
     table = sheet.tables[0]
     data = table.rows(values_only=True)
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             # Suppress RuntimeWarning from numbers_parser
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                df = get_numbers_data(numbers_file)
+                df = get_numbers_data(numbers_file.resolve())
 
             tsv_filename = output_dir / (numbers_file.stem + ".tsv")
             df.to_csv(tsv_filename, sep="\t", index=False)
