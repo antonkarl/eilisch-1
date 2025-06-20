@@ -10,9 +10,11 @@ __pycache__
 
 # Project-specific files
 data
+data_information.pdf
 glf_files
 mps
 plots
 gpt_mattr
 extraction_data/*
 news
+notebooks
