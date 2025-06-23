@@ -7,7 +7,7 @@ Install the requirements (use python3.12).
 pip install requirements.txt
 ```
 
-Download necessary files [here](https://drive.google.com/file/d/1-acd-uzqOiJU3IYwv3lIZSKEFX5dXTBb/view?usp=sharing) and extract them.
+Download necessary files [here](https://drive.google.com/uc?export=download&id=1-acd-uzqOiJU3IYwv3lIZSKEFX5dXTBb) and extract them.
 
 Run the script from the command line:
 
