@@ -7,7 +7,7 @@ Install the requirements (use python3.12).
 pip install requirements.txt
 ```
 
-Download necessary files [here](https://drive.google.com/uc?export=download&id=1-acd-uzqOiJU3IYwv3lIZSKEFX5dXTBb) and extract them.
+Download necessary files [here](https://drive.google.com/uc?export=download&id=1-acd-uzqOiJU3IYwv3lIZSKEFX5dXTBb) and extract them into the `extract_scripts` folder. The name of the extracted folder should be `extraction_data`.
 
 Run the script from the command line:
 
