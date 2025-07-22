@@ -96,3 +96,16 @@ Each object represents a configuration for a specific person and may include the
 - `"save_path"`: A string representing the path where data (e.g., speeches) should be saved (e.g., `"./full_speeches"`). If omitted the speeches are not saved.
 
 All properties are optional.
+
+# File Overview: `extract_scripts` Folder
+
+| File/Folder            | Description                                                                                   |
+|------------------------|----------------------------------------------------------------------------------------------|
+| `collectmp_cli.py`     | Main CLI tool for processing IGC-PARLA corpus files. Handles argument parsing and extraction.|
+| `collectmp.py`         | Batch extraction script for testing or bulk processing with hardcoded configurations.         |
+| `corpus_extrator.py`   | Contains the `CorpusExtractor` class for metadata loading and corpus file processing.         |
+| `file_handler.py`      | Defines `FileHandler` for parsing XML files and extracting speeches and speaker metadata.     |
+| `speech.py`            | Implements the `Speech` class for analyzing and extracting features from individual speeches. |
+| `utils.py`             | Shared constants, helper functions, and data structures used across scripts.                 |
+| `config.json`          | Example configuration file specifying extraction targets and save paths.                      |
+| `extraction_data/`     | Directory containing required data files (dictionaries, mappings) for extraction.             |
