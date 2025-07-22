@@ -97,7 +97,7 @@ Each object represents a configuration for a specific person and may include the
 
 All properties are optional.
 
-# File Overview: `extract_scripts` Folder
+# File Overview
 
 | File/Folder            | Description                                                                                   |
 |------------------------|----------------------------------------------------------------------------------------------|
