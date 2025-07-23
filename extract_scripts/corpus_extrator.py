@@ -124,7 +124,7 @@ class CorpusExtractor:
             A dictionary mapping words and parts of speech to their frequencies.
         """
         if dict_file.suffix == ".json":
-            with open(dict_file, "r") as json_file:
+            with open(dict_file, "r", encoding="utf-8") as json_file:
                 word_dict = json.load(json_file)
         else:
             word_dict = defaultdict(lambda: defaultdict(int))
@@ -139,7 +139,7 @@ class CorpusExtractor:
             dir = dict_file.parent
             new_file = dir / f"{file_name}.json"
             print("Saving data to json...")
-            with open(new_file, "w") as json_file:
+            with open(new_file, "w", encoding="utf-8") as json_file:
                 json.dump(word_dict, json_file, indent=4)
 
         return word_dict
